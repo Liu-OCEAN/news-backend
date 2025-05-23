@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN"> <!-- 改为中文 -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>新闻列表</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+    <!-- 你的自定义样式 (可选) -->
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body { padding-top: 70px; } /* 为固定的导航栏留出空间 */
+        .news-item { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .news-item h2 { margin-top: 0; font-size: 20px;}
+        .news-item p { font-size: 14px; color: #777; }
+        #category-nav button { margin-right: 5px; margin-bottom: 10px;}
+        .news-item img { max-width: 100%; height: auto; margin-bottom: 10px; }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="index.html">
+                    <span class="glyphicon glyphicon-leaf"></span> 新闻聚合
+                </a>
+            </div>
+
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li class="active"><a href="index.html">主页 <span class="sr-only">(current)</span></a></li>
+                    <!-- <li><a href="#">推荐</a></li> -->
+                </ul>
+                <ul class="nav navbar-nav navbar-right" id="user-auth-links">
+                    <!-- 登录/注册或用户信息将通过JS动态填充 -->
+                    <li id="nav-login-item"><a href="login.html"><span class="glyphicon glyphicon-log-in"></span> 登录</a></li>
+                    <li id="nav-register-item"><a href="register.html"><span class="glyphicon glyphicon-user"></span> 注册</a></li>
+                    <li class="dropdown" id="nav-user-dropdown" style="display:none;">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                            <span class="glyphicon glyphicon-user"></span> <span id="nav-user-name"></span> <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="userpage.html">个人主页</a></li>
+                            <!-- <li><a href="#">修改信息</a></li> -->
+                            <li role="separator" class="divider"></li>
+                            <li><a href="#" onclick="logoutUser()">退出登录</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>新闻列表 <small id="current-category-title">全部</small></h1>
+        </div>
+
+        <div id="category-nav" class="text-center well well-sm">
+            <button class="btn btn-default" onclick="filterNews('all')">全部</button>
+            <button class="btn btn-danger" onclick="filterNews('健康')">健康</button>
+            <button class="btn btn-success" onclick="filterNews('国际')">国际</button>
+            <button class="btn btn-primary" onclick="filterNews('大陆')">大陆</button>
+            <button class="btn btn-info" onclick="filterNews('社会')">社会</button>
+            <button class="btn btn-warning" onclick="filterNews('体育')">体育</button>
+            <button class="btn btn-science" onclick="filterNews('科技')">科技</button>
+            <button class="btn btn-car" onclick="filterNews('汽车')">汽车</button>
+            <button class="btn btn-education" onclick="filterNews('教育')">教育</button>
+            <button class="btn btn-navy" onclick="filterNews('财经')">财经</button>
+            <button class="btn btn-game" onclick="filterNews('游戏')">游戏</button>
+            <button class="btn btn-teal" onclick="filterNews('娱乐')">娱乐</button>
+            <button class="btn btn-maroon" onclick="filterNews('历史')">历史</button>
+            <button class="btn btn-purple" onclick="filterNews('军事')">军事</button>
+            <button class="btn btn-science" onclick="filterNews('科学')">科学</button>
+            <button class="btn btn-important" onclick="filterNews('要闻')">要闻</button>
+        </div>
+
+        <div id="news-container">
+            <!-- 新闻内容将通过 JavaScript 动态添加 -->
+            <div class="alert alert-info" role="alert">正在加载新闻...</div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+
+    <script>
+        let allNews = [];
+        let currentUser = null;
+
+        async function fetchNews() {
+            try {
+                 const response = await fetch('/news?page_size=200');// 确保你的后端API是这个路径
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                allNews = await response.json();
+                displayNews(allNews);
+            } catch (error) {
+                console.error('获取新闻时出错:', error);
+                document.getElementById('news-container').innerHTML = '<div class="alert alert-danger">加载新闻失败，请稍后再试。</div>';
+            }
+        }
+
+        function displayNews(newsList) {
+            const newsContainer = document.getElementById('news-container');
+            newsContainer.innerHTML = '';
+
+            if (newsList.length === 0) {
+                newsContainer.innerHTML = '<div class="alert alert-warning">该分类下暂无新闻。</div>';
+                return;
+            }
+
+            newsList.forEach(news => {
+                const newsItem = document.createElement('div');
+                newsItem.classList.add('news-item', 'row'); // 使用row便于以后扩展
+
+                const contentDiv = document.createElement('div');
+                contentDiv.classList.add('col-md-12'); //占满整行
+                 
+                // 新增图片展示逻辑
+                if (news.image_url) {
+                    const img = document.createElement('img');
+                    img.src = news.image_url;
+                    contentDiv.appendChild(img);
+                }
+
+                const title = document.createElement('h2');
+                const link = document.createElement('a');
+                link.href = news.href;
+                link.target = '_blank'; // 在新标签页打开
+                link.textContent = news.title || '无标题新闻'; // 处理title可能为空的情况
+                title.appendChild(link);
+
+                const typeAndDate = document.createElement('p');
+                typeAndDate.innerHTML = `<span class="label label-default">${news.news_type}</span> - <small>${new Date(news.datetime).toLocaleString('zh-CN')}</small>`;
+
+                contentDiv.appendChild(title);
+                contentDiv.appendChild(typeAndDate);
+                newsItem.appendChild(contentDiv);
+                newsContainer.appendChild(newsItem);
+            });
+        }
+
+        function filterNews(category) {
+            document.getElementById('current-category-title').textContent = category === 'all' ? '全部' : category;
+            if (category === 'all') {
+                displayNews(allNews);
+            } else {
+                const filteredNews = allNews.filter(news => news.news_type === category);
+                displayNews(filteredNews);
+            }
+        }
+
+        async function checkUserLogin() {
+            try {
+                const response = await fetch('/user/check-login'); // 确保后端API路径正确
+                if (response.ok) {
+                    const user = await response.json();
+                    if (user && user.name) { // 假设后端返回 { name: '用户名' }
+                        currentUser = user;
+                        document.getElementById('nav-user-name').textContent = user.name;
+                        document.getElementById('nav-login-item').style.display = 'none';
+                        document.getElementById('nav-register-item').style.display = 'none';
+                        document.getElementById('nav-user-dropdown').style.display = 'block';
+                    } else {
+                        // 未登录或获取用户信息失败
+                        document.getElementById('nav-login-item').style.display = 'block';
+                        document.getElementById('nav-register-item').style.display = 'block';
+                        document.getElementById('nav-user-dropdown').style.display = 'none';
+                    }
+                } else {
+                     // 即使HTTP状态不是200，也认为未登录
+                    document.getElementById('nav-login-item').style.display = 'block';
+                    document.getElementById('nav-register-item').style.display = 'block';
+                    document.getElementById('nav-user-dropdown').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('检查用户登录状态时出错:', error);
+                document.getElementById('nav-login-item').style.display = 'block';
+                document.getElementById('nav-register-item').style.display = 'block';
+                document.getElementById('nav-user-dropdown').style.display = 'none';
+            }
+        }
+
+      // index.html (或其他有退出按钮的页面) 的 <script> 部分
+        async function logoutUser() {
+            const modalBody = document.getElementById('logoutStatusModalBody');
+            try {
+                const response = await fetch('/user/logout', { method: 'POST' }); // 确保后端API路径正确
+                if (response.ok) {
+                    currentUser = null;
+                    // 尝试从响应中获取消息，如果没有则使用默认消息
+                    let data = {};
+                    try {
+                        data = await response.json(); // 假设后端可能返回JSON
+                    } catch (e) { /* 忽略解析错误，如果不是JSON响应 */ }
+
+                    modalBody.textContent = data.message || '您已成功退出登录。';
+                    $('#logoutStatusModal').modal('show'); // 使用jQuery选择器显示模态框
+                    checkUserLogin(); // 重新检查并更新导航栏状态
+                } else {
+                    let errorData = { message: '退出登录失败，请稍后再试。' };
+                    try {
+                        errorData = await response.json();
+                    } catch (e) { /* 忽略解析错误 */ }
+                    modalBody.textContent = errorData.message || '退出登录失败，请稍后再试。';
+                    $('#logoutStatusModal').modal('show');
+                    console.error('Logout failed with status:', response.status);
+                }
+            } catch (error) {
+                console.error('退出登录时出错:', error);
+                modalBody.textContent = '退出登录时发生网络错误。';
+                $('#logoutStatusModal').modal('show');
+            }
+        }
+
+
+        window.onload = async () => {
+            await checkUserLogin(); // 先检查登录状态，更新导航栏
+            await fetchNews();      // 再获取新闻
+        };
+    </script>
+</body>
+<!-- index.html (或其他有退出按钮的页面) 底部 -->
+<div class="modal fade" id="logoutStatusModal" tabindex="-1" role="dialog" aria-labelledby="logoutStatusModalLabel">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                <h4 class="modal-title" id="logoutStatusModalLabel">退出状态</h4>
+            </div>
+            <div class="modal-body" id="logoutStatusModalBody">
+                <!-- 消息将在这里显示 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    /* 自定义按钮颜色 */
+    .btn-purple {
+        color: #fff;
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    .btn-purple:hover {
+        color: #fff;
+        background-color: #5a32a3;
+        border-color: #543099;
+    }
+    
+    .btn-teal {
+        color: #fff;
+        background-color: #20c997;
+        border-color: #20c997;
+    }
+    .btn-teal:hover {
+        color: #fff;
+        background-color: #1aa179;
+        border-color: #199671;
+    }
+    
+    .btn-orange {
+        color: #fff;
+        background-color: #fd7e14;
+        border-color: #fd7e14;
+    }
+    .btn-orange:hover {
+        color: #fff;
+        background-color: #da6a0f;
+        border-color: #cc640e;
+    }
+    
+    .btn-maroon {
+        color: #fff;
+        background-color: #8b0000;
+        border-color: #8b0000;
+    }
+    .btn-maroon:hover {
+        color: #fff;
+        background-color: #6a0000;
+        border-color: #5c0000;
+    }
+    
+    .btn-navy {
+        color: #fff;
+        background-color: #000080;
+        border-color: #000080;
+    }
+    .btn-navy:hover {
+        color: #fff;
+        background-color: #00005a;
+        border-color: #00004d;
+    }
+    /* 其他按钮样式保持不变 */
+    /* 新增自定义按钮颜色 */
+        .btn-science {
+            color: #fff;
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+        }
+        .btn-science:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+        }
+        .btn-car {
+            color: #fff;
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        .btn-car:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+        .btn-education {
+            color: #fff;
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .btn-education:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        .btn-game {
+            color: #fff;
+            background-color: #e83e8c;
+            border-color: #e83e8c;
+        }
+        .btn-game:hover {
+            background-color: #d63384;
+            border-color: #c82333;
+        }
+        .btn-important {
+            color: #fff;
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .btn-important:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+</style>
+</html>
