@@ -22,7 +22,7 @@ df["content"] = "hello world"  # 或使用其他固定文本
 df = df.drop(columns=["新闻媒体"])
 
 # 新增：生成从33开始递增的id列
-df["id"] = range(33, 33 + len(df))
+df["id"] = range(1000, 1000 + len(df))
 
 # 调整列顺序与数据库表结构一致
 df = df[["id", "news_type", "href", "title", "datetime", "content"]]
